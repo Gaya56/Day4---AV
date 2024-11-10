@@ -1,11 +1,11 @@
 {
     "webex_api": {
         "base_url": "https://webexapis.com/v1/devices",
-        "api_key": "Your-Webex-API-Key"   
+        "api_key": "Your-Webex-API-Key"
     },
     "event_hub": {
-        "namespace": "weatherDataNamespace",
-        "name": "weatherDataHub",
+        "namespace": "webex_DataNamespace",
+        "name": "Cisco_DataHub",
         "connection_string": "Your-Event-Hub-Connection-String"
     },
     "fabric_real_time_analytics": {
