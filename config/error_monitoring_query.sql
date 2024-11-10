@@ -1,11 +1,13 @@
 SELECT
     device_id,
+    error_code,
     status,
-    error_code,        -- Include error code for visibility in Power BI
     last_activity,
     city,
     System.Timestamp AS event_time
 INTO
-    [outputPowerBI]
+    [outputErrorMonitoring]
 FROM
     [inputEventHub]
+WHERE
+    error_code IS NOT NULL  -- Only include error messages
