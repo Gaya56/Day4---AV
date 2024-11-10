@@ -1,66 +1,212 @@
-# Day4---AV
+**dual-pipeline setup**.
 
-### 1. **Data Ingestion** (from Cisco Webex API to Microsoft Fabric Real-Time Analytics or Azure Event Hub)
+### **Next Steps for the Repository**
 
-- **Cisco Webex API**: Periodically fetches real-time device metrics and status data from Cisco Webex Control Hub for multiple cities.
-- **Ingestion Script** (`pipeline/ingest/fabric_real_time_ingest.py`): This Python script, run as an Azure Function or in an automated environment, retrieves data from the Webex API and pushes it to **Microsoft Fabric Real-Time Analytics** or **Azure Event Hub**.
-- **Microsoft Fabric Real-Time Analytics** (or Event Hub): This is the entry point for all incoming data, acting as a scalable event stream. If using Fabric, it can immediately pass the data to transformation processes.
+To finalize the repo for deployment and usage, we’ll:
+1. **Add Scripts for Testing and Deployment**: Ensure scripts for seamless deployment and testing.
+2. **Organize Documentation**: Provide clear instructions in the README for setting up, deploying, and running the pipeline.
 
-**Flow Summary**: Cisco Webex API ➔ `fabric_real_time_ingest.py` ➔ Event Hub / Fabric Real-Time Analytics
+Let’s tackle these one at a time.
 
-### 2. **Data Streaming and Transformation** (Processing Real-Time Data)
+---
 
-- **Microsoft Fabric Real-Time Analytics / Azure Stream Analytics**:
-    - If using Fabric, Real-Time Analytics processes data directly, applying SQL-based or Spark-based transformations.
-    - If using Azure Stream Analytics with Event Hub, data is routed from Event Hub to Stream Analytics for transformations (e.g., filtering, aggregations, or formatting).
-- **Transformation Logic** (`pipeline/transform/fabric_transform.sql`): Defines the transformations applied to the incoming data. This could involve extracting only necessary fields, filtering on specific conditions, or performing aggregations.
+### **Step 1: Add Deployment and Testing Scripts**
 
-**Flow Summary**: Real-Time Analytics / Stream Analytics ➔ `fabric_transform.sql`
+We’ll create two main scripts in the `scripts/` folder:
+1. **deploy_all.sh**: A single script to deploy all Azure resources, including Event Hub, Stream Analytics, and Fabric Real-Time Analytics.
+2. **test_pipeline.py**: A Python script to test the pipeline end-to-end, simulating Webex API data ingestion and verifying data flow through Event Hub, Stream Analytics, and Fabric.
 
-### 3. **Data Storage** (Storing Transformed Data)
+---
 
-- **Microsoft Fabric OneLake**: Acts as the centralized data lake to store all processed and historical data. Fabric’s **Lakehouse** or **Warehouse** options enable fast querying and analysis.
-- **Azure Data Explorer (optional)**: If needed for specific query and analytics capabilities, data could be stored in **Kusto DB** for further querying and analysis.
+#### **1.1 Create `deploy_all.sh` in `scripts/`
 
-**Flow Summary**: Transformed data ➔ Fabric OneLake (Lakehouse/Warehouse) / Azure Data Explorer
+This script will automate the deployment of Azure resources based on the Bicep templates and configurations in the repo.
 
-### 4. **Visualization and Reporting** (Power BI Real-Time Dashboards)
+Add the following code to `scripts/deploy_all.sh`:
 
-- **Power BI**:
-    - Power BI dashboards and reports pull data directly from Fabric OneLake (or Azure Data Explorer, if in use).
-    - Reports for each city are available individually (stored in `output/PowerBI-reports/`), and a consolidated real-time dashboard (in `output/dashboards/`) displays metrics across all cities.
-    - Power BI visualizations update in real-time, giving immediate insights into device status, performance, and other metrics for each city.
+```bash
+#!/bin/bash
+# Deploy all Azure resources for the dual-pipeline setup
 
-**Flow Summary**: Fabric OneLake ➔ Power BI reports (`output/PowerBI-reports/`) ➔ Real-Time Dashboard (`output/dashboards/`)
+# Set resource group and location
+RESOURCE_GROUP="<Your-Resource-Group>"
+LOCATION="eastus"  # Update as needed
 
-### 5. **Real-Time Alerts and Monitoring** (Microsoft Fabric Data Activator)
+# Deploy Event Hub Namespace and Event Hub
+echo "Deploying Event Hub..."
+az deployment group create \
+    --resource-group $RESOURCE_GROUP \
+    --template-file config/eventhub_setup.bicep
 
-- **Microsoft Fabric Data Activator**: Allows you to set up triggers and alerts based on data thresholds or conditions. For example, you might configure alerts for when devices go offline or exceed a certain usage threshold.
-- **Notification and Monitoring**: Alerts can be set to send real-time notifications (e.g., email, SMS, or within Power BI) if specific conditions are met, enabling proactive monitoring of devices.
+# Deploy Stream Analytics Job for general metrics
+echo "Deploying Stream Analytics Job..."
+az deployment group create \
+    --resource-group $RESOURCE_GROUP \
+    --template-file config/stream_analytics_setup.bicep
 
-**Flow Summary**: Processed Data ➔ Data Activator ➔ Real-Time Alerts
+# Deploy Fabric Real-Time Analytics Job for error monitoring
+echo "Deploying Fabric Real-Time Analytics Job..."
+az deployment group create \
+    --resource-group $RESOURCE_GROUP \
+    --template-file config/fabric_real_time_analytics_setup.bicep
 
-### Overall Flow Summary
+# Deploy Azure Key Vault for secrets management
+echo "Deploying Azure Key Vault..."
+az deployment group create \
+    --resource-group $RESOURCE_GROUP \
+    --template-file security-management/key-vault/key_vault_setup.bicep
 
-The complete data flow in the pipeline is as follows:
+echo "Deployment complete."
+```
+
+**Explanation**:
+- This script automates the deployment of **Event Hub**, **Stream Analytics**, **Fabric Real-Time Analytics**, and **Key Vault** resources in sequence.
+- Replace `<Your-Resource-Group>` with your Azure resource group.
+
+---
+
+#### **1.2 Create `test_pipeline.py` in `scripts/`
+
+This script will simulate data ingestion to Event Hub, allowing us to test the pipeline end-to-end.
+
+Add the following code to `scripts/test_pipeline.py`:
+
+```python
+import os
+import json
+import time
+from azure.eventhub import EventHubProducerClient, EventData
+from datetime import datetime
+
+# Configuration
+EVENT_HUB_CONN_STR = os.getenv("EVENT_HUB_CONN_STR")
+EVENT_HUB_NAME = os.getenv("EVENT_HUB_NAME")
+
+# Simulate device data
+def generate_test_data():
+    # Generate some dummy data with random error codes
+    devices = [
+        {"device_id": "device1", "status": "active", "city": "Calgary", "error_code": None},
+        {"device_id": "device2", "status": "inactive", "city": "Toronto", "error_code": "ERR01"},
+        {"device_id": "device3", "status": "active", "city": "Calgary", "error_code": "ERR02"},
+    ]
+    for device in devices:
+        device["last_activity"] = datetime.utcnow().isoformat()
+    return devices
+
+# Send data to Event Hub
+def send_to_event_hub(data):
+    producer = EventHubProducerClient.from_connection_string(
+        conn_str=EVENT_HUB_CONN_STR,
+        eventhub_name=EVENT_HUB_NAME
+    )
+    with producer:
+        event_data_batch = producer.create_batch()
+        for record in data:
+            event_data_batch.add(EventData(json.dumps(record)))
+        producer.send_batch(event_data_batch)
+    print("Test data sent to Event Hub.")
+
+if __name__ == "__main__":
+    # Generate and send test data
+    test_data = generate_test_data()
+    send_to_event_hub(test_data)
+    print("Pipeline test initiated.")
+```
+
+**Explanation**:
+- This script generates sample device data, some with error codes and some without, to simulate both normal and error conditions.
+- It sends the data to Event Hub, allowing us to test both Stream Analytics and Fabric processing.
+
+---
+
+### **Step 2: Organize Documentation in the README**
+
+Now, let’s add comprehensive setup and usage instructions to `README.md` to guide users on deploying, testing, and understanding the dual-pipeline setup.
+
+---
+
+#### **Add to `README.md`**
+
+```markdown
+# Real-Time Device Monitoring Pipeline with Microsoft Fabric
+
+This repository implements a real-time data pipeline for monitoring Cisco Webex devices, using Azure services and Microsoft Fabric for error detection, automation, and insights.
+
+## Architecture Overview
+
+- **Pipeline 1 (General Metrics)**: Ingests all device metrics and routes to Power BI for full visibility.
+- **Pipeline 2 (Error Monitoring and Automation)**: Filters error messages for automation and alerting in Microsoft Fabric.
+
+### Repository Structure
 
 ```
-Cisco Webex API
-   ➔ Ingestion Script (`fabric_real_time_ingest.py`)
-   ➔ Event Hub / Microsoft Fabric Real-Time Analytics
-   ➔ Stream Analytics / Real-Time Analytics (Transformation)
-   ➔ Fabric OneLake (Lakehouse/Warehouse) / Azure Data Explorer
-   ➔ Power BI (City Reports and Real-Time Dashboard)
-   ➔ Data Activator (Real-Time Alerts)
-
+azure-weather-pipeline/
+│
+├── config/                              # Configuration and query files
+│   ├── data_transform_query.sql         # Query for Stream Analytics (general metrics)
+│   ├── error_monitoring_query.sql       # Query for Fabric Real-Time Analytics (error-only)
+│   ├── fabric_real_time_analytics_setup.bicep  # Bicep for Fabric job setup
+│   ├── stream_analytics_setup.bicep     # Bicep for Stream Analytics setup
+│
+├── pipeline/                            # Ingestion scripts
+│   ├── ingest/
+│   │   ├── fabric_real_time_ingest.py   # Script to ingest data from Webex API to Event Hub
+│
+├── scripts/                             # Deployment and testing scripts
+│   ├── deploy_all.sh                    # Script to deploy all resources
+│   ├── test_pipeline.py                 # Script to test pipeline with simulated data
+│
+└── README.md                            # Documentation for setup and usage
 ```
 
-### High-Level Breakdown by Stage:
+### Setup Instructions
 
-1. **Ingestion**: Data pulled from Webex API and streamed to Fabric/Stream Analytics.
-2. **Transformation**: Data cleaned, filtered, or aggregated in real-time.
-3. **Storage**: Processed data stored in Fabric's OneLake or Azure Data Explorer.
-4. **Visualization**: Real-time insights via Power BI dashboards for each city and across all cities.
-5. **Alerting**: Real-time monitoring and alerts based on predefined data conditions.
+1. **Clone the Repository**  
+   ```bash
+   git clone <repo-url>
+   cd azure-weather-pipeline
+   ```
 
-Each component in the flow works in tandem to provide a continuous, real-time view of device metrics across multiple cities, ensuring centralized visibility, monitoring, and alerting in one cohesive pipeline. Let me know if you want to start configuring any specific stage!
+2. **Set Up Environment Variables**  
+   - Configure environment variables for your Azure resources in your local environment:
+     ```bash
+     export EVENT_HUB_CONN_STR='<your-event-hub-connection-string>'
+     export EVENT_HUB_NAME='<your-event-hub-name>'
+     export WEBEX_API_KEY='<your-webex-api-key>'
+     ```
+
+3. **Deploy Resources with `deploy_all.sh`**  
+   - Run the deployment script to set up all Azure resources:
+     ```bash
+     ./scripts/deploy_all.sh
+     ```
+
+4. **Test the Pipeline with `test_pipeline.py`**  
+   - Run the test script to simulate data flow through Event Hub:
+     ```bash
+     python scripts/test_pipeline.py
+     ```
+
+5. **View Real-Time Data in Power BI**  
+   - Open Power BI and connect to the Stream Analytics and Fabric outputs to see all device metrics and error-specific insights in one dashboard.
+
+### Data Flow Summary
+
+1. **Pipeline 1 (General Metrics)**:  
+   Webex API ➔ Event Hub ➔ Stream Analytics ➔ Power BI
+
+2. **Pipeline 2 (Error Monitoring)**:  
+   Webex API ➔ Event Hub ➔ Fabric Real-Time Analytics ➔ Data Activator (Alerts and Automation)
+```
+
+---
+
+### **Summary**
+
+With these additions, the repository now has:
+1. **Deployment automation** via `deploy_all.sh`.
+2. **Testing capabilities** with `test_pipeline.py` to simulate end-to-end data flow.
+3. **Comprehensive documentation** in `README.md` for easy setup and usage.
+
+Let me know if there’s anything else you’d like to adjust, or if we’re ready to finalize the setup!
