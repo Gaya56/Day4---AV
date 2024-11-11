@@ -1,0 +1,57 @@
+.
+├── .gitignore
+├── LICENSE
+├── README.md
+├── config
+│   ├── WebexIngestionFunction
+│   │   ├── __init__.py
+│   │   ├── function.json
+│   │   ├── function_app.py
+│   │   └── webex_ingest_config.json
+│   ├── stream_analytics_setup.bicep
+│   └── streamset-up.md
+├── create_structure.sh
+├── host.json
+├── output
+│   ├── PowerBI-reports
+│   │   ├── city1-report.pbix
+│   │   └── city2-report.pbix
+│   └── dashboards
+│       ├── fabric-dashboard.pbix
+│       └── troubleshooting-dashboard.pbix
+├── pipeline
+│   ├── ingest
+│   │   ├── Azure_Function
+│   │   │   ├── .gitignore
+│   │   │   ├── host.json
+│   │   │   ├── local.settings.json
+│   │   │   └── requirements.txt
+│   │   ├── blob_storage_ingest.py
+│   │   ├── error_monitoring_query.sql
+│   │   └── fabric_real_time_ingest.py
+│   └── transform
+│       ├── data_transform_query.sql
+│       ├── fabric_notebook.ipynb
+│       ├── fabric_transform.sql
+│       └── stream_analytics_query.sql
+├── repo_structure.txt
+├── requirements.txt
+├── scripts
+│   ├── cost_management.sh
+│   ├── event_hub_setup.bicep
+│   └── fabric_workspace
+│       ├── Fabric_Repo_notes.md
+│       ├── configure_fabric_dataflows.py
+│       ├── deploy_fabric_infrastructure.sh
+│       ├── fabric_real_time_analytics_setup.bicep
+│       └── setup_fabric_real_time_analytics.sh
+├── security-management
+│   └── key-vault
+│       ├── Intructions_secrets.md
+│       ├── configure_secrets.py
+│       └── secrets_setup.bicep
+└── test
+    ├── deploy_all.sh
+    └── test_pipeline.py
+
+14 directories, 40 files

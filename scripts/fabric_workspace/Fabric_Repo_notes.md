@@ -14,3 +14,12 @@ A Bicep template file to define and provision Microsoft Fabric Real-Time Analyti
 ### `setup_fabric_real_time_analytics.sh`
 A shell script (presumably) to deploy the `fabric_real_time_analytics_setup.bicep` file. This file likely handles executing the Bicep template to set up the Real-Time Analytics job.
 
+<<<<<<< HEAD
+=======
+### `configure_fabric_dataflows.py`
+
+This Python script should:
+
+- Connect to the Fabric workspace and configure any required dataflows.
+- Set up parameters to process error messages or other real-time alerts based on your requirements.
+>>>>>>> abd0cd9 (commit all changes)
