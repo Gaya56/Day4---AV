@@ -1,3 +1,33 @@
+Got it. Here’s a summarized version based on your description:
+
+---
+
+### Updated Plan
+
+We’re taking the existing repo and reworking it to use **Azure services only**, removing Microsoft Fabric from the flow.
+
+### Revised Architecture
+
+1. **Data Ingestion**:
+   - Each city has its own **Docker container** containing Cisco Webex Control Hub API data (per city).
+   - Containers will store city-specific API configurations and data, with tables for different metrics (e.g., device status, performance).
+   
+2. **Data Streaming**:
+   - **Azure Function** will pull data from each city’s container and send it to **Azure Event Hub** for real-time streaming.
+   
+3. **Real-Time Processing**:
+   - **Azure Stream Analytics** and **Azure Synapse** will process data from Event Hub, transforming it as needed for analysis.
+   
+4. **Visualization and Control**:
+   - **Power BI**: Users will have a dropdown to select city-specific data or different metrics (data types). They’ll see real-time insights for each city’s Cisco devices.
+   - **Control Functions**: Power BI will offer options to restart, reconnect, or reset devices. Selected actions will be triggered via Azure Function to control the Cisco devices based on user commands.
+
+---
+
+This setup uses **Docker containers per city** to manage data and API configurations, with **Azure Function, Event Hub, Stream Analytics, Synapse, and Power BI** forming the data flow, visualization, and control loop.
+
+
+
 Your pipeline flow is looking impressive and streamlined! Here’s a high-level summary of this stage, as part of our ongoing narrative for the pipeline's development:
 Capabilities of the Current Setup
 
